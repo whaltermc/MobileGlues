@@ -226,10 +226,58 @@ std::string forceSupporterOutput(const std::string& glslCode) {
 }
 
 std::string removeLayoutBinding(const std::string& glslCode) {
-    static std::regex bindingRegex(R"(layout\s*\(\s*binding\s*=\s*\d+\s*\)\s*)");
-    std::string result = std::regex_replace(glslCode, bindingRegex, "");
-    static std::regex bindingRegex2(R"(layout\s*\(\s*binding\s*=\s*\d+\s*,)");
-    result = std::regex_replace(result, bindingRegex2, "layout(");
+    std::string result;
+    size_t pos = 0;
+    size_t length = glslCode.length();
+
+    while (pos < length) {
+        size_t lineEnd = glslCode.find('\n', pos);
+        if (lineEnd == std::string::npos) lineEnd = length;
+
+        std::string line = glslCode.substr(pos, lineEnd - pos);
+
+        // Uniform block declarations need their layout qualifiers in ESSL.
+        // Detect: line contains "layout(...) uniform TypeName {"
+        bool isBlockDecl = false;
+        size_t uniPos = line.find("uniform");
+        if (uniPos != std::string::npos) {
+            size_t afterUni = uniPos + 7;
+            while (afterUni < line.size() && std::isspace((unsigned char)line[afterUni]))
+                ++afterUni;
+            // Skip precision qualifier if present
+            if (afterUni + 5 <= line.size() && line.compare(afterUni, 5, "highp") == 0) afterUni += 5;
+            else if (afterUni + 6 <= line.size() && line.compare(afterUni, 6, "mediump") == 0) afterUni += 6;
+            else if (afterUni + 4 <= line.size() && line.compare(afterUni, 4, "lowp") == 0) afterUni += 4;
+            while (afterUni < line.size() && std::isspace((unsigned char)line[afterUni])) ++afterUni;
+            // Skip type name
+            size_t typeStart = afterUni;
+            while (typeStart < line.size() && (std::isalnum((unsigned char)line[typeStart]) || line[typeStart] == '_'))
+                ++typeStart;
+            while (typeStart < line.size() && std::isspace((unsigned char)line[typeStart])) ++typeStart;
+            if (typeStart < line.size() && line[typeStart] == '{') {
+                isBlockDecl = true;
+            }
+        }
+
+        if (isBlockDecl) {
+            // Preserve layout for uniform blocks: replace binding with std140
+            static std::regex re1(R"(layout\s*\(\s*std140\s*,\s*binding\s*=\s*\d+\s*\))");
+            line = std::regex_replace(line, re1, "layout(std140)");
+            static std::regex re2(R"(layout\s*\(\s*binding\s*=\s*\d+\s*\))");
+            line = std::regex_replace(line, re2, "layout(std140)");
+        } else {
+            // Strip layout(binding = N) from non-block lines (samplers, etc.)
+            static std::regex re3(R"(layout\s*\(\s*binding\s*=\s*\d+\s*\)\s*)");
+            line = std::regex_replace(line, re3, "");
+            static std::regex re4(R"(layout\s*\(\s*binding\s*=\s*\d+\s*,)");
+            line = std::regex_replace(line, re4, "layout(");
+        }
+
+        result += line;
+        if (lineEnd < length) result += '\n';
+        pos = lineEnd + 1;
+    }
+
     return result;
 }
 
