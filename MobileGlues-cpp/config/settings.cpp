@@ -204,8 +204,8 @@ void init_settings() {
     case NoErrorConfig::Auto:
     case NoErrorConfig::Disable:
     default:
-        global_settings.ignore_error = IgnoreErrorLevel::None;
-        LOG_D("Error ignoring: Disabled");
+        global_settings.ignore_error = IgnoreErrorLevel::Partial;
+        LOG_D("Error ignoring: Level 1 (Partial)");
         break;
     }
 

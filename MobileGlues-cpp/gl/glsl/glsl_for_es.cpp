@@ -867,6 +867,13 @@ std::string GLSLtoGLSLES_2(const char* glsl_code, GLenum glsl_type, uint essl_ve
     if (glsl_type != GL_COMPUTE_SHADER) {
         essl = removeLayoutBinding(essl);
     }
+    // gl_DrawID is a desktop-GLSL builtin (GL_ARB_shader_draw_parameters) and does
+    // not exist in ESSL. Minecraft 26.3 terrain shaders used with MultiDrawIndirect
+    // reference it to index per-draw instance data. Replace it with gl_InstanceIndex
+    // (ESSL 3.0+) so the translated shader compiles; each sub-draw in an unrolled
+    // multi-draw restarts instance counting at 0, which is the closest ESSL
+    // approximation available without per-draw uniform interception.
+    replace_all(essl, "gl_DrawID", "gl_InstanceIndex");
     essl = processOutColorLocations(essl);
     essl = forceSupporterOutput(essl);
 

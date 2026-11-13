@@ -90,8 +90,8 @@ void glShaderSource(GLuint shader, GLsizei count, const GLchar* const* string, c
         essl_src = GLSLtoGLSLES(glsl_src.c_str(), shaderType, hardware->es_version, glsl_version, return_code);
 
         if (essl_src.empty()) {
-            LOG_E("Failed to convert shader %d.", shader)
-            return;
+            LOG_E("Failed to convert shader %d; forwarding original source to the driver.", shader)
+            essl_src = glsl_src;
         }
         LOG_D("\n[INFO] [Shader] Converted Shader source: \n%s", essl_src.c_str())
     }
